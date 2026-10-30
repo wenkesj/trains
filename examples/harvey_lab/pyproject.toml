@@ -1,0 +1,39 @@
+[project]
+name = "trains-harvey-example"
+version = "0.1.0"
+requires-python = ">=3.12,<3.14"
+dependencies = ["trains-example-recipes", "baseten==0.12.0", "trains-sdk[baseten,harvey]", "numpy==2.4.6", "transformers>=5.20.2,<5.21", "typer>=0.16"]
+
+[tool.uv]
+package = false
+# Pin the upstream SDK revision with both Loops deployment and BDN enum APIs.
+# baseten-bdn retains an older <0.12 metadata cap.
+override-dependencies = ["baseten==0.12.0"]
+
+[tool.uv.sources]
+trains-example-recipes = {path = "../recipes", editable = true}
+baseten = {git = "https://github.com/basetenlabs/baseten-python", rev = "cc581e198d2c4a4f039cc555ec1afd10b73737f2"}
+trains-sdk = {path = "../../trains", editable = true}
+
+[dependency-groups]
+dev = ["pytest>=8.2", "ruff>=0.16"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["D"]
+ignore = ["D100", "D104", "D105"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["D"]
+
+[tool.pygate]
+extend-exclude = ["tests"]

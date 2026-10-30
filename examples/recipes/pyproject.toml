@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "trains-example-recipes"
+version = "0.1.0"
+description = "Shared recipes for the Trains examples, outside the library API."
+requires-python = ">=3.12"
+dependencies = ["trains-sdk", "transformers>=5.20.2,<5.21", "jinja2>=3.1"]
+
+[project.optional-dependencies]
+tracing = ["opentelemetry-sdk>=1.36,<2"]
+vision = ["tinker>=0.35,<0.36", "torch>=2.6", "torchvision>=0.26", "pillow>=13,<14"]
+
+[tool.hatch.build.targets.wheel]
+include = ["/*.py", "/*/**/*.py"]
+exclude = ["/tests"]
+dev-mode-dirs = [".."]
+
+[tool.hatch.build.targets.wheel.sources]
+"" = "recipes"
+
+[tool.uv.sources]
+trains-sdk = {path = "../../trains", editable = true}
+torch = {index = "pytorch-cpu"}
+torchvision = {index = "pytorch-cpu"}
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[dependency-groups]
+dev = ["pytest>=8.2", "tinker==0.35.0", "numpy==2.4.6"]
+
+[tool.ruff]
+extend = "../../trains/pyproject.toml"
+
+[tool.ty.src]
+include = ["**/*.py"]
+exclude = ["tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN", "D"]
+
+[tool.pygate]
+extend-exclude = ["tests"]

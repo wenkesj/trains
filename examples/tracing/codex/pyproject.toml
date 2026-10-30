@@ -1,0 +1,60 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "trains-example-tracing-codex"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "trains-sdk[tinker,cookbook,arize-ax]",
+  "trains-example-recipes[tracing]",
+  "typer>=0.16",
+  "transformers>=5.20.2,<5.21",
+  "torch==2.14.1",
+  "numpy==2.4.6",
+  "opentelemetry-sdk",
+  "opentelemetry-exporter-otlp-proto-http",
+  "openai==2.54.0",
+  "openinference-instrumentation-openai",
+  "fastapi>=0.162,<0.163",
+  "uvicorn>=0.54,<0.55"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["codex_tracing"]
+
+[tool.uv.sources]
+coding-harness-tracing = {git = "https://github.com/Arize-ai/coding-harness-tracing", rev = "e43113ff8420aaac09fc0caf8ce1dc93c9d9221d"}
+trains-sdk = {path = "../../../trains", editable = true}
+trains-example-recipes = {path = "../../recipes", editable = true}
+torch = {index = "pytorch-cpu"}
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[dependency-groups]
+dev = ["pytest>=8.2", "ruff>=0.16", "httpx>=0.27", "coding-harness-tracing"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["D"]
+ignore = ["D100", "D104", "D105"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["D"]
+
+[tool.pygate]
+extend-exclude = ["tests"]

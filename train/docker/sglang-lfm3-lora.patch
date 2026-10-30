@@ -1,0 +1,153 @@
+--- a/python/sglang/srt/lora/lora.py
++++ b/python/sglang/srt/lora/lora.py
+@@ -201,6 +201,9 @@
+ 
+     def _normalize_weights(self):
+         for layer in self.layers:
++            for name in list(layer.weights):
++                if ".conv.in_proj.lora_A." in name:
++                    layer.weights[name] = layer.weights[name].repeat(3, 1)
+             weight_names = list(layer.weights.keys())
+             self.normalize_qkv_proj(weight_names, layer.weights)
+             self.normalize_inkling_qkvr_proj(weight_names, layer.weights)
+@@ -463,6 +466,8 @@
+         self, weight_names: List[str], weights: Dict[str, torch.Tensor]
+     ):
+         for weight_name in weight_names:
++            if ".self_attn.gate_proj." in weight_name:
++                continue
+             if "gate_proj" in weight_name:
+                 up_name = weight_name.replace("gate_proj", "up_proj")
+                 gate_up_name = weight_name.replace("gate_proj", "gate_up_proj")
+--- a/python/sglang/srt/lora/utils.py
++++ b/python/sglang/srt/lora/utils.py
+@@ -300,6 +300,9 @@
+         "k_proj": "qkv_proj",
+         "v_proj": "qkv_proj",
+         "gate_proj": "gate_up_proj",
++        "w1": "gate_up_proj",
++        "w3": "gate_up_proj",
++        "w2": "down_proj",
+         "up_proj": "gate_up_proj",
+         "out_proj": "out_proj",
+         "embed_tokens": "embed_tokens",
+@@ -322,7 +325,10 @@
+     result = set()
+     for name in target_modules:
+         base_name = name.split(".")[-1]
+-        normalized_name = params_mapping.get(base_name, base_name)
++        normalized_name = (
++            "self_attn.gate_proj" if name.endswith("self_attn.gate_proj")
++            else params_mapping.get(base_name, base_name)
++        )
+         result.add(normalized_name)
+     return result
+ 
+@@ -411,6 +417,7 @@
+ # (i.e. get_hidden_dim, init_buffers, and init_lora_modules can handle them).
+ _KNOWN_LORA_TARGET_MODULES = frozenset(
+     {
++        "self_attn.gate_proj",
+         "qkv_proj",
+         "qkvr",
+         "o_proj",
+--- a/python/sglang/srt/models/lfm3.py
++++ b/python/sglang/srt/models/lfm3.py
+@@ -26,6 +26,7 @@
+ import torch.nn.functional as F
+ from torch import nn
+ 
++from sglang.srt.models.lfm3_lora import Lfm3LoRAMixin
+ from sglang.srt.configs.lfm3 import Lfm3Config
+ from sglang.srt.layers.activation import SiluAndMul
+ from sglang.srt.layers.attention.hybrid_linear_attn_backend import (
+@@ -840,7 +841,7 @@
+         )
+ 
+ 
+-class Lfm3ForCausalLM(nn.Module):
++class Lfm3ForCausalLM(Lfm3LoRAMixin, nn.Module):
+     """LFM3 for causal LM with hybrid attention/SWA/conv architecture."""
+ 
+     fall_back_to_pt_during_load = False
+--- a/python/sglang/srt/models/lfm3_audio.py
++++ b/python/sglang/srt/models/lfm3_audio.py
+@@ -19,6 +19,7 @@
+ from transformers import Lfm2Model
+ from transformers.masking_utils import create_sliding_window_causal_mask
+ 
++from sglang.srt.models.lfm3_lora import Lfm3LoRAMixin
+ from sglang.srt.configs.lfm3_audio import Lfm3AudioConfig
+ from sglang.srt.managers.mm_utils import (
+     MultiModalityDataPaddingPatternMultimodalTokens,
+@@ -108,7 +109,7 @@
+         return self.model(features)
+ 
+ 
+-class Lfm3AudioForConditionalGeneration(nn.Module):
++class Lfm3AudioForConditionalGeneration(Lfm3LoRAMixin, nn.Module):
+     def __init__(self, config: Lfm3AudioConfig, quant_config=None, prefix=""):
+         super().__init__()
+         self.config = config
+--- /dev/null
++++ b/python/sglang/srt/models/lfm3_lora.py
+@@ -0,0 +1,28 @@
++"""LoRA geometry for LFM3 text and multimodal language decoders."""
++
++from sglang.srt.lora.utils import get_default_hidden_dim, get_stacked_multiply
++
++
++class Lfm3LoRAMixin:
++    supported_lora_modules = {
++        "qkv_proj", "o_proj", "out_proj", "in_proj", "gate_up_proj", "down_proj",
++        "self_attn.gate_proj",
++    }
++
++    def should_apply_lora(self, module_name):
++        return module_name.startswith(("model.layers.", "language_model.model.layers."))
++
++    def get_hidden_dim(self, module_name, layer_idx):
++        config = self.config.get_text_config()
++        hidden = config.hidden_size
++        if module_name == "in_proj":
++            return hidden, 3 * hidden
++        if module_name == "out_proj":
++            return hidden, hidden
++        if module_name == "self_attn.gate_proj":
++            return hidden, config.num_attention_heads
++        return get_default_hidden_dim(module_name, config, layer_idx)
++
++    def get_stacked_multiply(self, module_name):
++        # The native convolution packs three projections sharing the same HF A.
++        return 3 if module_name == "in_proj" else get_stacked_multiply(module_name)
+--- a/python/sglang/srt/models/lfm3_vl.py
++++ b/python/sglang/srt/models/lfm3_vl.py
+@@ -12,6 +12,7 @@
+ import torch
+ from torch import nn
+ 
++from sglang.srt.models.lfm3_lora import Lfm3LoRAMixin
+ from sglang.srt.configs.lfm3_vl import Lfm3VlConfig
+ from sglang.srt.layers.quantization.base_config import QuantizationConfig
+ from sglang.srt.managers.mm_utils import (
+@@ -107,7 +108,7 @@
+         return remaining, loaded
+ 
+ 
+-class Lfm3VlForConditionalGeneration(Lfm3VisionFeaturesMixin, nn.Module):
++class Lfm3VlForConditionalGeneration(Lfm3LoRAMixin, Lfm3VisionFeaturesMixin, nn.Module):
+     def __init__(
+         self,
+         config: Lfm3VlConfig,
+--- a/python/sglang/srt/utils/common.py
++++ b/python/sglang/srt/utils/common.py
+@@ -4698,6 +4698,9 @@
+ 
+ # LoRA-related constants and utilities
+ SUPPORTED_LORA_TARGET_MODULES = [
++    "in_proj",
++    "out_proj",
++    "self_attn.gate_proj",
+     "q_proj",
+     "k_proj",
+     "v_proj",

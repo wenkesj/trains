@@ -1,0 +1,25 @@
+{
+  "models": [{
+    "slug": "policy",
+    "display_name": "Published Tinker policy",
+    "description": "Local coding benchmark behavior policy",
+    "default_reasoning_level": "none",
+    "supported_reasoning_levels": [{"effort": "none", "description": "Thinking disabled by the publication receipt"}],
+    "shell_type": "shell_command",
+    "visibility": "list",
+    "supported_in_api": true,
+    "priority": 0,
+    "availability_nux": null,
+    "upgrade": null,
+    "model_messages": {"instructions_template": "Implement the Python exercise in /workspace using the shell tool. Read INSTRUCTIONS.md and the starter files. Preserve required function signatures. After checking your solution, finish with a concise summary. Do not ask for input."},
+    "support_verbosity": false,
+    "default_verbosity": null,
+    "apply_patch_tool_type": null,
+    "truncation_policy": {"mode": "tokens", "limit": 10000},
+    "context_window": 32768,
+    "experimental_supported_tools": [],
+    "input_modalities": ["text"],
+    "supports_search_tool": false,
+    "tool_mode": "direct"
+  }]
+}

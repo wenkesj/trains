@@ -1,0 +1,96 @@
+name: trains
+
+services:
+  training:
+    mem_limit: ${TRAIN_MEMORY_LIMIT:-30g}
+    memswap_limit: ${TRAIN_MEMORY_SWAP_LIMIT:-34g}
+    healthcheck:
+      test: ["CMD", "/opt/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8382/health', timeout=5)"]
+      interval: 5s
+      timeout: 6s
+      retries: 60
+      start_period: 30s
+    build:
+      context: .
+      dockerfile: train/docker/Dockerfile
+    profiles: ["training"]
+    command: ["--host", "0.0.0.0", "--port", "8382", "--root", "${TRAIN_ROOT:-/train}", "--model", "${TRAIN_MODEL:-LiquidAI/LFM3-Omni-2B}=/models"]
+    environment:
+      TRAIN_DEVICE: cuda:0
+      TRAIN_DTYPE: bfloat16
+      TRAIN_GRADIENT_CHECKPOINTING: ${TRAIN_GRADIENT_CHECKPOINTING:-false}
+      TRAIN_CHECKPOINT_OFFLOAD: ${TRAIN_CHECKPOINT_OFFLOAD:-false}
+      TRAIN_TRUST_REMOTE_CODE: ${TRAIN_TRUST_REMOTE_CODE:-true}
+      TRAIN_MLP_CHUNK_SIZE: ${TRAIN_MLP_CHUNK_SIZE:-2048}
+      TRAIN_ATTENTION_BACKEND: ${TRAIN_ATTENTION_BACKEND:-auto}
+      PYTORCH_ALLOC_CONF: expandable_segments:True
+      TRAIN_KERNELS: ${TRAIN_KERNELS:-auto}
+      TRAIN_SAMPLING_BACKEND: ${TRAIN_SAMPLING_BACKEND:-transformers}
+      TRAIN_INFERENCE_BACKEND: sglang
+      TRAIN_INFERENCE_CHECKPOINT_MODE: merged
+      TRAIN_INFERENCE_MODEL_PATH: /models
+      TRAIN_INFERENCE_URL: http://sglang:30000
+      TRAIN_INFERENCE_API_KEY: ${TRAIN_INFERENCE_API_KEY:-}
+      TRAIN_INFERENCE_TRAIN_ROOT: ${TRAIN_ROOT:-/train}
+      TRAIN_INFERENCE_BASE_MODEL: ${TRAIN_MODEL:-LiquidAI/LFM3-Omni-2B}
+      TRAIN_INFERENCE_SERVED_MODEL: ${TRAIN_MODEL:-LiquidAI/LFM3-Omni-2B}
+      TRAIN_INFERENCE_SHARED_GPU: ${TRAIN_INFERENCE_SHARED_GPU:-true}
+      TRAIN_INFERENCE_MAX_OUTPUT_TOKENS: ${TRAIN_INFERENCE_MAX_OUTPUT_TOKENS:-4096}
+      OMP_NUM_THREADS: ${TRAIN_CPU_THREADS:-8}
+      MKL_NUM_THREADS: ${TRAIN_CPU_THREADS:-8}
+      HF_HOME: /kernel-cache
+      TRITON_CACHE_DIR: /kernel-cache/triton
+    ports:
+      - "127.0.0.1:8382:8382"
+    volumes:
+      - ${TRAIN_MODEL_PATH:-./var/models/lfm3-omni}:/models:ro
+      - ./var/train:/train
+      - ./var/kernels:/kernel-cache
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
+
+  sglang:
+    image: lmsysorg/sglang@sha256:6bd391aa4b807340cd1ca7d8ea9c1075326fb55eebd4a4167a54791f0a33240c
+    profiles: ["vlm"]
+    mem_limit: ${INFERENCE_MEMORY_LIMIT:-24g}
+    memswap_limit: ${INFERENCE_MEMORY_SWAP_LIMIT:-24g}
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:30000/ready', timeout=5)"]
+      interval: 5s
+      timeout: 6s
+      retries: 60
+      start_period: 3m
+    entrypoint: ["python3", "-m", "sglang.launch_server"]
+    command:
+      - --model-path=/models
+      - --served-model-name=${TRAIN_MODEL:-LiquidAI/LFM3-Omni-2B}
+      - --trust-remote-code
+      - --host=0.0.0.0
+      - --port=30000
+      - --dtype=bfloat16
+      - --attention-backend=triton
+      - --context-length=${INFERENCE_CONTEXT_LENGTH:-32768}
+      - --mem-fraction-static=${INFERENCE_MEMORY_FRACTION:-0.4}
+      - --max-running-requests=${INFERENCE_MAX_REQUESTS:-4}
+      - --cuda-graph-max-bs-decode=4
+      - --reasoning-parser=qwen3
+      - --tool-call-parser=qwen3_coder
+      - --sampling-defaults=openai
+      - --enable-memory-saver
+    environment:
+      HF_HUB_OFFLINE: "1"
+      SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION: "0"
+    ports:
+      - "127.0.0.1:30000:30000"
+    ipc: host
+    volumes:
+      - ${TRAIN_MODEL_PATH:-./var/models/lfm3-omni}:/models:ro
+      - ./var/sglang-cache:/root/.cache
+      - ./var/train:/train:ro
+    deploy:
+      resources:
+        reservations:
+          devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]

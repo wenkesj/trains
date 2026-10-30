@@ -1,0 +1,194 @@
+version: '3'
+vars:
+  DIST_DIR: dist
+  DOCS_BASE: /trains/
+  MEMBERS: trains train pygate examples/recipes
+  TRACING_EXAMPLES: examples/tracing/openai_agents examples/tracing/claude_agents examples/tracing/codex examples/tracing/opencode examples/tracing/deepagents
+
+tasks:
+  up:
+    cmds: ["docker compose -f compose.train.yml --profile training --profile vlm up -d --wait"]
+  down:
+    cmds: ["docker compose -f compose.train.yml --profile training --profile vlm down"]
+  ps:
+    cmds: ["docker compose -f compose.train.yml --profile training --profile vlm ps"]
+  logs:
+    cmds: ["docker compose -f compose.train.yml --profile training --profile vlm logs -f {{.CLI_ARGS}}"]
+  docs:diagram:
+    desc: Render the Mermaid overview diagram as a PNG
+    cmds:
+      - 'npm exec --yes --package=@mermaid-js/mermaid-cli@11.12.0 -- mmdc -i docs/diagrams/overview.mmd -o docs/public/images/overview.png -b white -s 2 -w 1400 {{.CLI_ARGS}}'
+  docs:install:
+    desc: Install locked documentation dependencies
+    cmds: ["npm --prefix docs ci"]
+  docs:test:
+    desc: Run documentation tests
+    cmds: ["npm --prefix docs test", "npm --prefix docs test -- --mode development-docs"]
+  docs:reference:
+    desc: Generate the Python code reference from Google-style docstrings
+    cmds:
+      - 'uv run --isolated --only-group docs --locked mkdocs build --strict -f docs/mkdocs.yml'
+      - 'uv run --isolated --only-group docs --locked python docs/export_reference.py'
+  docs:compile:
+    desc: Build documentation at the root URL
+    cmds:
+      - "npm --prefix docs run build"
+      - task: docs:reference
+      - task: docs:public:check
+  docs:pages:
+    desc: Build documentation for GitHub Pages
+    env:
+      DOCS_BASE: '{{.DOCS_BASE}}'
+    cmds:
+      - 'npm --prefix docs run build -- --base="$DOCS_BASE"'
+      - task: docs:reference
+      - task: docs:public:check
+  docs:public:check:
+    desc: Verify public artifacts exclude development APIs
+    cmds: ["uv run --isolated --no-project python docs/check_public.py"]
+  docs:dev:compile:
+    desc: Build development-only API documentation outside the public site
+    cmds:
+      - "npm --prefix docs run build -- --mode development-docs --outDir ../var/docs-development --emptyOutDir"
+      - "uv run --isolated --only-group docs --locked mkdocs build --strict -f docs/mkdocs.yml"
+      - "uv run --isolated --only-group docs --locked python docs/export_reference.py --output var/docs-development"
+      - "cp docs/development/openapi.json var/docs-development/openapi.json"
+  docs:dev:serve:
+    desc: Serve development-only documentation on loopback
+    cmds: ["python -m http.server 8384 --bind 127.0.0.1 --directory var/docs-development"]
+  docs:openapi:
+    desc: Regenerate the OpenAPI snapshot
+    env: {CUDA_VISIBLE_DEVICES: ""}
+    cmds: [".venv/bin/python docs/export_openapi.py"]
+  docs:openapi:check:
+    desc: Check the OpenAPI snapshot
+    env: {CUDA_VISIBLE_DEVICES: ""}
+    cmds: [".venv/bin/python docs/export_openapi.py --check"]
+  docs:build:
+    desc: Generate, test, and build documentation
+    cmds:
+      - task: docs:openapi
+      - task: docs:install
+      - task: docs:test
+      - task: docs:compile
+  docs:serve:
+    cmds: ["python -m http.server 8383 --bind 127.0.0.1 --directory docs/dist"]
+  sync:check:
+    cmds: ["uv sync --all-packages --all-extras --dry-run"]
+  sync:
+    cmds: ["uv sync --all-packages --all-extras"]
+  lint:python:
+    desc: Run Ruff and Pygate
+    cmds:
+      - ".venv/bin/ruff check {{.MEMBERS}} docs/export_openapi.py docs/gen_reference.py docs/export_reference.py docs/check_public.py .github/scripts"
+      - ".venv/bin/pygate check {{.MEMBERS}} docs/export_openapi.py"
+      - task: lint:examples
+  example:lint:
+    desc: Run Ruff and Pygate on one isolated example (EXAMPLE required)
+    requires: {vars: [EXAMPLE]}
+    env: {EXAMPLE: '{{.EXAMPLE}}'}
+    cmds: ['.venv/bin/python .github/scripts/examples.py lint "$EXAMPLE"']
+  example:type:
+    desc: Type check one example using its own synced environment (EXAMPLE required)
+    requires: {vars: [EXAMPLE]}
+    env: {EXAMPLE: '{{.EXAMPLE}}'}
+    cmds: ['.venv/bin/python .github/scripts/examples.py type "$EXAMPLE"']
+  example:test:
+    desc: Run one example's CPU unit tests when present (EXAMPLE required)
+    requires: {vars: [EXAMPLE]}
+    env: {EXAMPLE: '{{.EXAMPLE}}', CUDA_VISIBLE_DEVICES: '', TINKER_TELEMETRY: '0'}
+    cmds: ['.venv/bin/python .github/scripts/examples.py test "$EXAMPLE"']
+  test:examples:
+    desc: Run CPU unit tests in every synced example environment
+    env: {CUDA_VISIBLE_DEVICES: '', TINKER_TELEMETRY: '0'}
+    cmds: ['.venv/bin/python .github/scripts/examples.py test']
+  lint:examples:
+    desc: Run Ruff and Pygate on all isolated examples and shared recipes
+    cmds: ['.venv/bin/python .github/scripts/examples.py lint']
+  type:examples:
+    desc: Type check all examples using their own synced environments
+    env: {CUDA_VISIBLE_DEVICES: ''}
+    cmds: ['.venv/bin/python .github/scripts/examples.py type']
+  examples:quality:
+    desc: Lint and type check every isolated example
+    cmds:
+      - task: lint:examples
+      - task: type:examples
+  type:check:
+    desc: Type check workspace members and shared recipes
+    env: {CUDA_VISIBLE_DEVICES: ""}
+    cmds:
+      - '.venv/bin/ty check --project trains --python .venv'
+      - 'for member in train pygate examples/recipes; do .venv/bin/ty check --project "$member" --python .venv || exit; done'
+  lint:
+    desc: Lint and type check Python members
+    cmds:
+      - task: lint:python
+      - task: type:check
+  test:python:
+    desc: Run CPU tests for all Python members
+    env: {CUDA_VISIBLE_DEVICES: ""}
+    cmds:
+      - 'for member in {{.MEMBERS}}; do .venv/bin/python -m pytest "$member/tests" -q || exit; done'
+  doctest:python:
+    desc: Test library and shared RL docstring examples without hosted services
+    env: {CUDA_VISIBLE_DEVICES: "", TINKER_TELEMETRY: "0"}
+    cmds: ['.venv/bin/python -m pytest --doctest-modules trains/trains train/train pygate/pygate examples/recipes/rl.py -q']
+  doctest:examples:
+    desc: Test critical-path docstrings in each independent example environment
+    env: {CUDA_VISIBLE_DEVICES: "", TINKER_TELEMETRY: "0"}
+    cmds:
+      - 'for example in examples/harbor examples/harvey_lab examples/inspect examples/ultrachat; do uv run --project "$example" --locked --group dev pytest --doctest-modules "$example/run.py" -q || exit; done'
+      - 'for example in {{.TRACING_EXAMPLES}}; do uv run --project "$example" --locked --group dev pytest --doctest-modules "$example"/*_tracing/spec.py -q || exit; done'
+      - 'uv run --project examples/inspect --locked --group dev pytest --doctest-modules examples/inspect/chartqa.py -q'
+  test:
+    desc: Run Python and documentation tests and check OpenAPI
+    cmds:
+      - task: test:python
+      - task: doctest:python
+      - task: docs:test
+      - task: docs:openapi:check
+  packages:build:
+    desc: Build all workspace distributions
+    env:
+      DIST_DIR: '{{.DIST_DIR}}'
+    cmds: ['uv build --all-packages --out-dir "$DIST_DIR"']
+  package:build:
+    desc: Build one distribution (PACKAGE required)
+    requires:
+      vars: [PACKAGE]
+    env:
+      PACKAGE: '{{.PACKAGE}}'
+      DIST_DIR: '{{.DIST_DIR}}'
+    cmds: ['uv build --package "$PACKAGE" --out-dir "$DIST_DIR"']
+  packages:check:
+    desc: Check built distribution metadata
+    env:
+      DIST_DIR: '{{.DIST_DIR}}'
+    cmds: ['uvx --from twine twine check --strict "$DIST_DIR"/*']
+  security:python:
+    desc: Audit the workspace and every example with native uv audit
+    cmds:
+      - |
+        result=0
+        for lock in uv.lock examples/*/uv.lock examples/tracing/*/uv.lock; do
+          project=$(dirname "$lock")
+          echo "Auditing $project"
+          uv --preview-features audit-command audit --frozen --project "$project" || result=1
+        done
+        exit "$result"
+  security:npm:
+    desc: Audit documentation dependencies
+    cmds: ['npm --prefix docs audit --audit-level=high']
+  examples:check:
+    desc: Lint, type check, and test every synced example environment
+    cmds:
+      - task: examples:quality
+      - task: test:examples
+      - task: doctest:examples
+      - "uv run --project examples/harbor --locked pytest trains/tests/datasets/test_harbor.py -q"
+      - "uv run --project examples/inspect --locked pytest trains/tests/datasets/test_inspect.py examples/inspect/tests -q"
+      - 'for example in {{.TRACING_EXAMPLES}}; do uv sync --project "$example" --locked --group dev || exit; uv run --project "$example" --locked --group dev pytest -c "$example/pyproject.toml" "$example/tests" -q || exit; done'
+  check:
+    desc: Run linting, types, and tests
+    cmds: [{task: lint}, {task: test}]

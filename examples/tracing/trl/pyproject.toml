@@ -1,0 +1,49 @@
+[project]
+name = "trains-trl-langfuse-example"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "trains-sdk",
+  "trl>=0.29,<1",
+  "peft>=0.18,<1",
+  "trains-example-recipes",
+  "transformers>=5.20,<6",
+  "torch>=2.6,<3",
+  "langfuse>=4.18,<5",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+trains-sdk = { path = "../../../trains", editable = true }
+trains-example-recipes = { path = "../../recipes", editable = true }
+torch = { index = "pytorch-cu130" }
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["D"]
+ignore = ["D100", "D104", "D105"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["D"]
+
+[tool.pygate]
+extend-exclude = ["tests"]
+
+[dependency-groups]
+dev = ["pytest>=8.2"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

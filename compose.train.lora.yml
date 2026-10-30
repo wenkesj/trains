@@ -1,0 +1,12 @@
+services:
+  training:
+    environment:
+      TRAIN_INFERENCE_CHECKPOINT_MODE: lora
+  sglang:
+    entrypoint: ["python3", "/opt/trains/sglang_lora.py"]
+    environment:
+      INFERENCE_DISABLE_CUDA_GRAPH: ${INFERENCE_DISABLE_CUDA_GRAPH:-false}
+      INFERENCE_MAX_LORA_RANK: ${INFERENCE_MAX_LORA_RANK:-8}
+    volumes:
+      - ./train/train/_sglang_patch.py:/opt/trains/sglang_lora.py:ro
+      - ./train/docker/sglang-lfm3-lora.patch:/opt/trains/sglang-lfm3-lora.patch:ro

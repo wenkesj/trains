@@ -1,0 +1,13 @@
+**/.venv
+.git
+**/.env
+**/var
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+
+**/node_modules
+docs/dist
+
+examples/harvey_lab/data
+examples/tracing/exercism

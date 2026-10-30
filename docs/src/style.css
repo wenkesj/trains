@@ -1,0 +1,68 @@
+/* Shared application surfaces and controls. */
+:root {
+  color-scheme: light;
+  --page: #ffffff;
+  --surface-1: #ffffff;
+  --surface-2: #f6f7f3;
+  --text-primary: #1c2520;
+  --text-secondary: #46504a;
+  --text-muted: #778079;
+  --grid: #f1f3ef;
+  --baseline: #dce1da;
+  --border: #e5e8e1;
+  --series-1: #258549;
+  --series-2: #dd529a;
+  --series-3: #247bb5;
+  --series-4: #ba770c;
+  --status-good: #13845d;
+  --status-warning: #a36806;
+  --status-serious: #b95524;
+  --status-critical: #cf385b;
+  --success-text: var(--status-good);
+  --accent: #269c4c;
+  --radius: 6px;
+  --radius-sm: 5px;
+  --font-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --shadow-1: 0 2px 8px rgb(35 22 75 / 3%);
+  --shadow-2: 0 8px 30px rgb(35 22 75 / 8%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+a {
+  color: var(--series-1);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+  font-size: 15px;
+}
+
+
+.nav-icon { width: 18px; height: 18px; }
+.brand { display: flex; color: var(--text-primary); font-size: 24px; font-weight: 650; }
+.skip-link { position: fixed; top: -100px; left: 16px; z-index: 100; padding: 12px; background: white; }
+.skip-link:focus { top: 12px; }

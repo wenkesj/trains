@@ -1,0 +1,47 @@
+[project]
+name = "trains-hf-agent-tracing-example"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "trains-sdk[baseten,cookbook]",
+  "trains-example-recipes",
+  "transformers>=5.20,<6",
+  "huggingface-hub>=1,<3",
+  "torch>=2.6,<3",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+trains-sdk = { path = "../../trains", editable = true }
+trains-example-recipes = { path = "../recipes", editable = true }
+torch = { index = "pytorch-cpu" }
+
+[dependency-groups]
+dev = ["pytest>=8.2", "ruff>=0.16"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["D"]
+ignore = ["D100", "D104", "D105"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["D"]
+
+[tool.pygate]
+extend-exclude = ["tests"]

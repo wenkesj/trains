@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "trains-vllm-plugin"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.entry-points."vllm.general_plugins"]
+trains_qwen_lora = "trains_vllm:register"
+
+[tool.hatch.build.targets.wheel]
+packages = ["trains_vllm"]
+
+[tool.ruff]
+extend = "../pyproject.toml"
+
+[tool.pygate]
+extend-exclude = ["tests"]

@@ -1,0 +1,36 @@
+site_name: Trains code reference
+site_url: https://wenkesj.github.io/trains/reference/
+repo_url: https://github.com/wenkesj/trains
+repo_name: wenkesj/trains
+edit_uri: edit/main/
+docs_dir: reference
+site_dir: ../var/docs-reference
+theme:
+  name: null
+  custom_dir: reference_theme
+nav:
+  - Overview: index.md
+  - Guides: https://wenkesj.github.io/trains/#/docs/guides/overview
+plugins:
+  - search
+  - gen-files:
+      scripts: [gen_reference.py]
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [../trains]
+          options:
+            docstring_style: google
+            docstring_section_style: list
+            show_root_heading: true
+            show_signature_annotations: true
+            separate_signature: true
+            merge_init_into_class: true
+            show_source: true
+            filters: ['!^_']
+            inherited_members: false
+            allow_inspection: false
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences

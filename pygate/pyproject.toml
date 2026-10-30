@@ -1,0 +1,74 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pygate"
+version = "0.1.0"
+readme = "README.md"
+description = "House-style rules ruff cannot express, configured the way ruff is"
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+authors = [{ name = "samwenke" }]
+dependencies = []
+
+[project.scripts]
+pygate = "pygate.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pygate"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = [".", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "W",
+  "I",
+  "UP",
+  "B",
+  "C4",
+  "SIM",
+  "RUF",
+  "ERA",
+  "D",
+  "PLC0415",
+  "PLR0915",
+  "PLW0602",
+  "PLW0603",
+  "S110",
+  "S112",
+  "TRY400",
+  "TID",
+]
+ignore = ["E501", "D100", "D104", "D105"]
+external = ["PG"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.isort]
+known-first-party = ["pygate"]
+split-on-trailing-comma = false
+
+# The checker holds itself to the rules it enforces.
+[tool.pygate]
+extend-exclude = ["tests"]
+
+[tool.ty.src]
+include = ["pygate"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
+consider_namespace_packages = true
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["D"]

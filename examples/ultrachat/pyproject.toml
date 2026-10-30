@@ -1,0 +1,35 @@
+[project]
+name = "trains-ultrachat-example"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["trains-example-recipes", "numpy==2.4.6", "trains-sdk[fireworks]", "transformers>=5.20.2,<5.21", "typer>=0.16", "filelock>=3.18"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+trains-example-recipes = {path = "../recipes", editable = true}
+trains-sdk = {path = "../../trains", editable = true}
+
+[dependency-groups]
+dev = ["pytest>=8.2", "ruff>=0.16"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["D"]
+ignore = ["D100", "D104", "D105"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["D"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.pygate]
+extend-exclude = ["tests"]

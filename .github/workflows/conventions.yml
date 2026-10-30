@@ -1,0 +1,45 @@
+name: PR conventions
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  conventions:
+    name: PR conventions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Validate branch, PR title, and commit subjects
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+
+          with open(os.environ['GITHUB_EVENT_PATH']) as source:
+              pr = json.load(source)['pull_request']
+          types = r'(?:feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)'
+          subject = re.compile(types + r'(?:\([^()\r\n]+\))?!?: [^\s].*')
+          branch = re.compile(types + r'/[a-z0-9]+(?:-[a-z0-9]+)*')
+          errors = []
+          if not branch.fullmatch(pr['head']['ref']):
+              errors.append('Branch must use type/kebab-case-description, e.g. feat/session-adapter.')
+          if not subject.fullmatch(pr['title']):
+              errors.append('PR title must use Conventional Commits, e.g. feat(tracing): add adapter.')
+          endpoint = f"repos/{os.environ['GITHUB_REPOSITORY']}/pulls/{pr['number']}/commits?per_page=100"
+          pages = json.loads(subprocess.check_output(['gh', 'api', '--paginate', '--slurp', endpoint]))
+          for page in pages:
+              for commit in page:
+                  title = commit['commit']['message'].splitlines()[0]
+                  if not subject.fullmatch(title):
+                      errors.append(f"Commit {commit['sha'][:12]} must use a Conventional Commit subject.")
+          if errors:
+              raise SystemExit('\n'.join(errors))
+          print('Branch, PR title, and all commit subjects follow the contribution rules.')
+          PY

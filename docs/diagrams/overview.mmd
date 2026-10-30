@@ -1,0 +1,71 @@
+---
+config:
+  theme: base
+  themeVariables:
+    fontFamily: 'DejaVu Sans, sans-serif'
+    edgeLabelBackground: '#ffffff'
+    fontSize: '17px'
+    primaryTextColor: '#172b3a'
+    lineColor: '#8495a7'
+    clusterBkg: '#f8fafc'
+    clusterBorder: '#d7e0e8'
+  themeCSS: '.nodeLabel, .edgeLabel, .cluster-label { font-family: DejaVu Sans, sans-serif !important; }'
+  flowchart:
+    wrappingWidth: 560
+    subGraphTitleMargin:
+      top: 12
+      bottom: 20
+    curve: basis
+    nodeSpacing: 24
+    rankSpacing: 38
+    padding: 18
+    htmlLabels: true
+---
+flowchart TB
+  accTitle: Trains — from agent runs to reusable training data
+  accDescr: Applications produce OpenInference traces, benchmark artifacts, or native session files. Trains exports native provider datasets and experiments or imports harness artifacts into Hugging Face chat datasets, then renders provider-native datum datasets for training and deployment. Updated policies return to the application.
+
+  apps("<b>YOUR APPLICATION</b><br/>Codex · Claude Code · OpenCode · Pi<br/>Claude Agents SDK · OpenAI Agents SDK<br/>DeepAgents · Google ADK")
+
+  subgraph sources["1 · COLLECT AND EVALUATE"]
+    direction LR
+    oi("<b>Tracing · OpenInference spans</b><br/>OpenTelemetry / OTLP")
+    platform("<b>Native datasets & experiments</b><br/>Arize Phoenix · Arize AX<br/>LangSmith · Langfuse")
+    oi --> platform
+    artifacts("<b>Benchmark & dataset artifacts</b><br/>Harbor · Inspect · Harvey LAB<br/>Hugging Face datasets")
+    sessions("<b>Sessions · native agent files</b><br/>Codex · OpenCode · Pi · STS<br/>Local JSON / JSONL · Hub traces")
+  end
+
+  subgraph trains["2 · PREPARE WITH TRAINS"]
+    direction TB
+    chat("<b>HF Chat Dataset</b><br/>Messages · tools · rewards · provenance")
+    adapters("<b>Render with the matching tokenizer</b><br/>Tinker · Spindle · Baseten Loops · Fireworks")
+    datum("<b>HF Datum Dataset</b><br/>Provider-native inputs · assistant loss masks")
+    chat --> adapters --> datum
+  end
+
+  training("<b>3 · TRAIN AND DEPLOY</b><br/>Use your provider's native SDK<br/>Tinker · Spindle · Baseten · Fireworks")
+
+  apps --> sources
+  platform -->|Export linked model calls & grades| chat
+  artifacts -->|Import complete conversations| chat
+  sessions -->|Convert with a session adapter| chat
+  datum --> training
+  training -. Updated policy .-> apps
+
+  classDef application fill:#e5edff,stroke:#6184d8,color:#233d74,stroke-width:2px;
+  classDef trace fill:#e4f3ff,stroke:#65a6d3,color:#164e75,stroke-width:1.5px;
+  classDef benchmark fill:#efe9ff,stroke:#a28ad0,color:#59427e,stroke-width:1.5px;
+  classDef session fill:#fcebf0,stroke:#c88da3,color:#773d55,stroke-width:1.5px;
+  classDef dataset fill:#ddf4e7,stroke:#54a17a,color:#20563e,stroke-width:2px;
+  classDef adapter fill:#eff9f3,stroke:#8bbb9f,color:#20563e,stroke-width:1.5px;
+  classDef provider fill:#fff0d9,stroke:#d4a255,color:#78511c,stroke-width:2px;
+  class apps application;
+  class oi,platform trace;
+  class artifacts benchmark;
+  class sessions session;
+  class chat,datum dataset;
+  class adapters adapter;
+  class training provider;
+  style sources fill:#f8fafc,stroke:#d7e0e8,stroke-width:1px,color:#506174
+  style trains fill:#f4faf6,stroke:#b4d6c1,stroke-width:1.5px,color:#2c6848

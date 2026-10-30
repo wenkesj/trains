@@ -1,0 +1,110 @@
+# Local development only. These fixed credentials are not suitable for a public deployment.
+name: trains-tracing
+x-environment: &environment
+  NEXTAUTH_URL: http://localhost:3031
+  DATABASE_URL: postgresql://postgres:local-development@postgres:5432/langfuse
+  SALT: trains-local-development
+  ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef # gitleaks:allow -- public local-only fixture
+  TELEMETRY_ENABLED: "false"
+  CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+  CLICKHOUSE_URL: http://clickhouse:8123
+  CLICKHOUSE_USER: langfuse
+  CLICKHOUSE_PASSWORD: local-development
+  CLICKHOUSE_CLUSTER_ENABLED: "false"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_AUTH: local-development
+  LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+  LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
+  LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: local-development
+  LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+  LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+  LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+  LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: minio
+  LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: local-development
+  LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://minio:9000
+  LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+x-dependencies: &dependencies
+  postgres: {condition: service_healthy}
+  redis: {condition: service_healthy}
+  clickhouse: {condition: service_healthy}
+  minio: {condition: service_healthy}
+services:
+  langfuse-web:
+    image: docker.langfuse.com/langfuse/langfuse:4
+    ports: ["127.0.0.1:3031:3000"]
+    mem_limit: 2g
+    depends_on: *dependencies
+    environment:
+      <<: *environment
+      NEXTAUTH_SECRET: trains-local-development-secret
+      LANGFUSE_INIT_ORG_ID: trains-local
+      LANGFUSE_INIT_ORG_NAME: Trains local
+      LANGFUSE_INIT_PROJECT_ID: trains-tracing
+      LANGFUSE_INIT_PROJECT_NAME: Trains tracing
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: pk-lf-trains-local
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: sk-lf-trains-local-development
+      LANGFUSE_INIT_USER_EMAIL: local@trains.invalid
+      LANGFUSE_INIT_USER_NAME: Local developer
+      LANGFUSE_INIT_USER_PASSWORD: trains-local-development
+  langfuse-worker:
+    image: docker.langfuse.com/langfuse/langfuse-worker:4
+    mem_limit: 2g
+    depends_on: *dependencies
+    environment: *environment
+  postgres:
+    image: postgres:17
+    mem_limit: 512m
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: local-development
+      POSTGRES_DB: langfuse
+    volumes: ["postgres:/var/lib/postgresql/data"]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d langfuse"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  redis:
+    image: redis:7
+    mem_limit: 256m
+    command: [redis-server, --requirepass, local-development, --maxmemory, 192mb, --maxmemory-policy, noeviction]
+    healthcheck:
+      test: [CMD, redis-cli, -a, local-development, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.12
+    mem_limit: 2g
+    environment:
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_PASSWORD: local-development
+    volumes: ["clickhouse:/var/lib/clickhouse"]
+    healthcheck:
+      test: [CMD, wget, --quiet, --spider, http://localhost:8123/ping]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  minio:
+    image: cgr.dev/chainguard/minio
+    mem_limit: 512m
+    entrypoint: sh
+    command: ["-c", "mkdir -p /data/langfuse && minio server --address ':9000' /data"]
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: local-development
+    volumes: ["minio:/data"]
+    healthcheck:
+      test: [CMD, mc, ready, local]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  postgres:
+  clickhouse:
+  minio:

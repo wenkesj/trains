@@ -1,0 +1,43 @@
+[project]
+name = "trains-harbor-example"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["trains-example-recipes", "torch==2.14.1", "numpy==2.4.6", "trains-sdk[tinker,cookbook]", "harbor==0.25.0", "transformers>=5.20.2,<5.21", "typer>=0.16"]
+
+[tool.uv]
+package = false
+# LiteLLM caps filelock below the release fixing its published security advisories.
+override-dependencies = ["filelock>=4.2.1,<5"]
+
+[tool.uv.sources]
+trains-example-recipes = {path = "../recipes", editable = true}
+torch = {index = "pytorch-cpu"}
+trains-sdk = {path = "../../trains", editable = true}
+
+[dependency-groups]
+dev = ["pytest>=8.2", "ruff>=0.16"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["D"]
+ignore = ["D100", "D104", "D105"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["D"]
+
+[tool.pygate]
+extend-exclude = ["tests"]

@@ -1,0 +1,8 @@
+[submodule "examples/harvey_lab/data"]
+	path = examples/harvey_lab/data
+	url = https://github.com/harveyai/harvey-labs.git
+	shallow = true
+[submodule "examples/tracing/exercism"]
+	path = examples/tracing/exercism
+	url = https://github.com/exercism/python.git
+	shallow = true

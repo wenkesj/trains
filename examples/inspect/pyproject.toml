@@ -1,0 +1,54 @@
+[project]
+name = "trains-inspect-example"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "trains-example-recipes[vision]",
+  "trains-sdk[tinker,cookbook,inspect]",
+  "inspect-ai==0.3.286",
+  "chartography",
+  "typer>=0.16",
+  "torch==2.14.1",
+  "torchvision==0.29.1",
+  "numpy==2.4.6",
+  "transformers>=5.20.2,<5.21",
+  "tinker==0.35.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+trains-example-recipes = {path = "../recipes", editable = true}
+torch = {index = "pytorch-cpu"}
+torchvision = {index = "pytorch-cpu"}
+trains-sdk = {path = "../../trains", editable = true}
+chartography = {git = "https://github.com/surge-ai/chartography", rev = "3f1bf837232d3918c2cc35c6e2418c9e70d2a57b"}
+
+[dependency-groups]
+dev = ["pytest>=8.2", "ruff>=0.16"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["D"]
+ignore = ["D100", "D104", "D105"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["D"]
+
+[tool.pygate]
+extend-exclude = ["tests"]
